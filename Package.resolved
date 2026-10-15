@@ -1,0 +1,24 @@
+{
+  "originHash" : "818c4bbb6f831e7051dc0d87e458ac085b79316e47a8692c415349760331deaa",
+  "pins" : [
+    {
+      "identity" : "atuikit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/atlyslabs/ATUIKit",
+      "state" : {
+        "revision" : "a4d9b9720c36b371e2aba58200de0131359c4074",
+        "version" : "1.3.7"
+      }
+    },
+    {
+      "identity" : "nuke",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kean/Nuke.git",
+      "state" : {
+        "revision" : "83e19143355b02e9261edb2323b3e1e93287ebb9",
+        "version" : "12.9.0"
+      }
+    }
+  ],
+  "version" : 3
+}
