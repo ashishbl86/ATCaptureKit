@@ -22,6 +22,9 @@ let package = Package(
             dependencies: [
                 .product(name: "ATUIKit", package: "ATUIKit"),
             ],
+            resources: [
+                .process("Resources"),
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v5),
             ],

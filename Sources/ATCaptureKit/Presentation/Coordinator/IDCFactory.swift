@@ -7,7 +7,6 @@ public enum IDCFactory {
         from presenter: UIViewController,
         configuration: IDCConfiguration,
         verifier: IDCVerifier,
-        scanEngines: IDCScanEngineProvider,
         callbacks: IDCCallbacks
     ) {
         let context = IDCPushContext()
@@ -21,7 +20,6 @@ public enum IDCFactory {
         let viewController = makeViewController(
             configuration: configuration,
             verifier: verifier,
-            scanEngines: scanEngines,
             callbacks: wiredCallbacks
         )
         context.viewController = viewController
@@ -33,13 +31,11 @@ public enum IDCFactory {
     public static func makeViewController(
         configuration: IDCConfiguration,
         verifier: IDCVerifier,
-        scanEngines: IDCScanEngineProvider,
         callbacks: IDCCallbacks
     ) -> UIViewController {
         let viewModel = IDCFlowViewModel(
             configuration: configuration,
             verifier: verifier,
-            scanEngines: scanEngines,
             callbacks: callbacks
         )
         return IDCFlowViewController(viewModel: viewModel)

@@ -41,7 +41,7 @@ public final class IDCFlowViewModel: ObservableObject {
     @Published private(set) var configuration: IDCConfiguration
 
     private let verifier: IDCVerifier
-    let scanEngines: IDCScanEngineProvider
+    let analyzers: IDCAnalyzerProvider
     private let callbacks: IDCCallbacks
 
     private var results: [IDCPiece: IDCCaptureResult] = [:]
@@ -57,16 +57,29 @@ public final class IDCFlowViewModel: ObservableObject {
 
     private static let verifiedBeatNanoseconds = IDCTheme.Animation.verifiedBeatNanoseconds
 
-    public init(
+    public convenience init(
         configuration: IDCConfiguration,
         verifier: IDCVerifier,
-        scanEngines: IDCScanEngineProvider,
+        callbacks: IDCCallbacks
+    ) {
+        self.init(
+            configuration: configuration,
+            verifier: verifier,
+            analyzers: IDCModelAnalyzerProvider(configuration: configuration, runner: IDCInference.runner),
+            callbacks: callbacks
+        )
+    }
+
+    init(
+        configuration: IDCConfiguration,
+        verifier: IDCVerifier,
+        analyzers: IDCAnalyzerProvider,
         callbacks: IDCCallbacks
     ) {
         precondition(!configuration.pieces.isEmpty, "IDCConfiguration.pieces must not be empty")
         self.configuration = configuration
         self.verifier = verifier
-        self.scanEngines = scanEngines
+        self.analyzers = analyzers
         self.callbacks = callbacks
 
         var statuses: [IDCPiece: PieceStatus] = [:]

@@ -20,17 +20,17 @@ struct IDCSelfieScanScreen: View {
     @State private var captureProgress: Double = 0
     @State private var capturedMirrored = false
     @State private var cameraPosition: IDCCameraService.CameraPosition = .front
-    @State private var selfieMessage = ""
+    @State private var selfieGuidance: IDCSelfieGuidance?
     @State private var showCoTravellerChooser = false
     @State private var coTravellerChooserShown = false
     @State private var uploadAfterChooserDismiss = false
-    @StateObject private var engineHolder: IDCScanEngineHolder<IDCSelfieScanEngine>
+    @StateObject private var analyzerHolder: IDCAnalyzerHolder<IDCSelfieAnalyzer>
     @StateObject private var cameraService = IDCCameraService()
 
     init(viewModel: IDCFlowViewModel) {
         _viewModel = ObservedObject(wrappedValue: viewModel)
-        let scanEngines = viewModel.scanEngines
-        _engineHolder = StateObject(wrappedValue: IDCScanEngineHolder(scanEngines.makeSelfieEngine()))
+        let analyzers = viewModel.analyzers
+        _analyzerHolder = StateObject(wrappedValue: IDCAnalyzerHolder(analyzers.makeSelfieAnalyzer()))
     }
 
     private var copy: IDCCaptureCopy { viewModel.configuration.copy(for: piece) }
@@ -105,7 +105,7 @@ struct IDCSelfieScanScreen: View {
             .onAppear { IDCHaptics.sheet() }
         }
         .onAppear {
-            engineHolder.engine.prepare()
+            analyzerHolder.analyzer.prepare()
             consumeAutoPresentPickerIfNeeded()
             presentCoTravellerChooserIfNeeded()
         }
@@ -192,8 +192,8 @@ struct IDCSelfieScanScreen: View {
                             cameraService: cameraService,
                             isGoodFrame: $isGoodFrame,
                             captureProgress: $captureProgress,
-                            statusMessage: $selfieMessage,
-                            engine: engineHolder.engine,
+                            guidance: $selfieGuidance,
+                            analyzer: analyzerHolder.analyzer,
                             position: cameraPosition,
                             onCaptured: { image in
                                 capturedMirrored = cameraPosition == .front
@@ -248,8 +248,7 @@ struct IDCSelfieScanScreen: View {
     }
 
     private var liveGuidance: LiveGuidance? {
-        guard let message = IDCSelfieGuidance(rawValue: selfieMessage) else { return nil }
-        return Self.guidance(for: message)
+        selfieGuidance.flatMap(Self.guidance(for:))
     }
 
     fileprivate static func guidance(for message: IDCSelfieGuidance) -> LiveGuidance? {
@@ -422,7 +421,9 @@ struct IDCSelfieScanScreen: View {
         viewModel.subjectDetected()
         capturedMirrored = false
         checkingUpload = image
-        engineHolder.engine.validateUpload(image) { failure in
+        let analyzer = analyzerHolder.analyzer
+        Task {
+            let failure = IDCUploadCheck.selfie(await analyzer.analyzePhoto(image))
             checkingUpload = nil
             if let failure {
                 viewModel.captureFailed(piece, failure: failure, image: image)
@@ -437,28 +438,48 @@ private struct IDCSelfieCameraView: View {
     @ObservedObject var cameraService: IDCCameraService
     @Binding var isGoodFrame: Bool
     @Binding var captureProgress: Double
-    @Binding var statusMessage: String
-    let engine: IDCSelfieScanEngine
+    @Binding var guidance: IDCSelfieGuidance?
     let position: IDCCameraService.CameraPosition
     let onCaptured: (UIImage) -> Void
-    var onFaceSeen: () -> Void = {}
+    let onFaceSeen: () -> Void
 
-    @StateObject private var scanState = IDCSelfieScanState()
+    @StateObject private var liveScan: IDCSelfieLiveScan
     @State private var lastHapticStep = 0
+
+    init(
+        cameraService: IDCCameraService,
+        isGoodFrame: Binding<Bool>,
+        captureProgress: Binding<Double>,
+        guidance: Binding<IDCSelfieGuidance?>,
+        analyzer: IDCSelfieAnalyzer,
+        position: IDCCameraService.CameraPosition,
+        onCaptured: @escaping (UIImage) -> Void,
+        onFaceSeen: @escaping () -> Void = {}
+    ) {
+        _cameraService = ObservedObject(wrappedValue: cameraService)
+        _isGoodFrame = isGoodFrame
+        _captureProgress = captureProgress
+        _guidance = guidance
+        self.position = position
+        self.onCaptured = onCaptured
+        self.onFaceSeen = onFaceSeen
+        _liveScan = StateObject(wrappedValue: IDCSelfieLiveScan(analyzer: analyzer))
+    }
 
     var body: some View {
         ZStack {
-            IDCCameraPreview(session: cameraService.session) { view in
-                cameraService.previewView = view
-                engine.viewFinderView = view
-            }
+            IDCCameraPreview(
+                session: cameraService.session,
+                onViewCreated: { view in cameraService.previewView = view },
+                onSizeChange: { [liveScan] size in liveScan.updateViewfinderSize(size) }
+            )
 
-            if scanState.isGoodFrame {
+            if liveScan.isGoodFrame {
                 IDCHoldStillPreviewTint()
                     .transition(.opacity)
             }
 
-            if let countdown = scanState.countdownNumber {
+            if let countdown = liveScan.countdownNumber {
                 Text("\(countdown)")
                     .typoGraphy(.H1InterSemibold36)
                     .foregroundStyle(.white)
@@ -467,48 +488,48 @@ private struct IDCSelfieCameraView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.pureBlack)
-        .animation(.easeInOut(duration: 0.25), value: scanState.isGoodFrame)
+        .animation(.easeInOut(duration: 0.25), value: liveScan.isGoodFrame)
         .onAppear {
-            engine.startLive(isFrontCamera: position == .front, state: scanState)
-            statusMessage = scanState.statusMessage
-            weak let liveEngine = engine
+            liveScan.start(isFrontCamera: position == .front)
+            guidance = liveScan.guidance
+            weak let scan = liveScan
             cameraService.configureForVideo(position: position) { sampleBuffer in
-                liveEngine?.processFrame(sampleBuffer)
+                scan?.process(sampleBuffer)
             } onConfigured: {
                 cameraService.startSession()
             }
         }
         .onDisappear {
             cameraService.stopSession()
-            engine.stopLive()
+            liveScan.stop()
         }
-        .onReceive(scanState.$capturedImage.compactMap { $0 }) { image in
+        .onReceive(liveScan.$capturedImage.compactMap { $0 }) { image in
             cameraService.stopSession()
             onCaptured(image)
         }
-        .onReceive(scanState.$isGoodFrame) { good in
+        .onReceive(liveScan.$isGoodFrame) { good in
             isGoodFrame = good
         }
-        .onReceive(scanState.$hasSeenFace.filter { $0 }) { _ in
+        .onReceive(liveScan.$hasSeenFace.filter { $0 }) { _ in
             onFaceSeen()
         }
-        .onReceive(scanState.$captureProgress) { progress in
+        .onReceive(liveScan.$captureProgress) { progress in
             captureProgress = progress
             tickRatchet(for: progress)
         }
-        .onReceive(scanState.$statusMessage) { message in
-            statusMessage = message
+        .onReceive(liveScan.$guidance) { value in
+            guidance = value
         }
         .onChange(of: position) { _, newPosition in
             lastHapticStep = 0
             captureProgress = 0
             isGoodFrame = false
-            engine.restartLive(isFrontCamera: newPosition == .front)
-            weak let liveEngine = engine
+            liveScan.switchCamera(isFrontCamera: newPosition == .front)
+            weak let scan = liveScan
             cameraService.switchVideoCapturePosition(to: newPosition) { sampleBuffer in
-                liveEngine?.processFrame(sampleBuffer)
+                scan?.process(sampleBuffer)
             }
-            statusMessage = scanState.statusMessage
+            guidance = liveScan.guidance
         }
     }
 

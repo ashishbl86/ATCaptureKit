@@ -58,6 +58,9 @@ public struct IDCConfiguration {
     var reminderLinkRevealNanoseconds: UInt64 = IDCTheme.Animation.reminderLinkRevealNanoseconds
     public var onReminderSet: ((Date) -> Void)?
     public var selfieSubjectName: String?
+    public var passportChecks = IDCPassportChecks()
+    public var selfieChecks = IDCSelfieChecks.standard
+    public var selfieUploadChecks: IDCSelfieChecks?
     let analyticsContext: String
     #if DEBUG
     var debugSimulateCameraDenied: Bool = false

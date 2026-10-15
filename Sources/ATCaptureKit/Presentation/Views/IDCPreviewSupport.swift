@@ -57,7 +57,7 @@ enum IDCPreviewSupport {
         let viewModel = IDCFlowViewModel(
             configuration: configuration,
             verifier: IDCMockVerifier(mode: .alwaysVerify),
-            scanEngines: IDCNoopScanEngineProvider(),
+            analyzers: IDCNoopAnalyzerProvider(),
             callbacks: IDCCallbacks(onComplete: { _, _ in dismiss() }, onExit: dismiss)
         )
         seed?(viewModel)

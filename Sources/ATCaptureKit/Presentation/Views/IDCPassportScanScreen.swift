@@ -17,14 +17,14 @@ struct IDCPassportScanScreen: View {
     @StateObject private var cameraGate = IDCCameraPermissionGate()
     @State private var reminderLinkRevealed = false
     @State private var liveGuidance: IDCPassportGuidance = .searching
-    @StateObject private var engineHolder: IDCScanEngineHolder<IDCPassportScanEngine>
+    @StateObject private var analyzerHolder: IDCAnalyzerHolder<IDCPassportAnalyzer>
     @StateObject private var cameraService = IDCCameraService()
 
     init(viewModel: IDCFlowViewModel, piece: IDCPiece) {
         _viewModel = ObservedObject(wrappedValue: viewModel)
         self.piece = piece
-        let scanEngines = viewModel.scanEngines
-        _engineHolder = StateObject(wrappedValue: IDCScanEngineHolder(scanEngines.makePassportEngine()))
+        let analyzers = viewModel.analyzers
+        _analyzerHolder = StateObject(wrappedValue: IDCAnalyzerHolder(analyzers.makePassportAnalyzer()))
     }
 
     private var isBackPage: Bool { piece == .passportBack }
@@ -100,7 +100,7 @@ struct IDCPassportScanScreen: View {
             handleImportedFile(result)
         }
         .onAppear {
-            engineHolder.engine.prepare()
+            analyzerHolder.analyzer.prepare()
             consumeAutoPresentPickerIfNeeded()
         }
         .onChange(of: viewModel.autoPresentPicker) { consumeAutoPresentPickerIfNeeded() }
@@ -194,7 +194,7 @@ struct IDCPassportScanScreen: View {
                 IDCPassportCameraView(
                     cameraService: cameraService,
                     isForBackPage: isBackPage,
-                    engine: engineHolder.engine,
+                    analyzer: analyzerHolder.analyzer,
                     guidance: $liveGuidance,
                     onCaptured: { image, detections in
                         viewModel.captured(piece, image: image, fieldDetections: detections, source: .liveScan)
@@ -315,12 +315,16 @@ struct IDCPassportScanScreen: View {
     private func handleUpload(_ image: UIImage) {
         viewModel.subjectDetected()
         checkingUpload = image
-        engineHolder.engine.validateUpload(image, isForBackPage: isBackPage) { cropped, detections, failure in
+        let analyzer = analyzerHolder.analyzer
+        let isBackPage = isBackPage
+        Task {
+            let analysis = await analyzer.analyzePhoto(image, isForBackPage: isBackPage)
             checkingUpload = nil
-            if let failure {
+            switch IDCUploadCheck.passport(analysis, image: image, isForBackPage: isBackPage) {
+            case .accepted(let cropped, let detections):
+                viewModel.captured(piece, image: cropped, fieldDetections: detections, source: .gallery)
+            case .rejected(let failure):
                 viewModel.captureFailed(piece, failure: failure, image: image)
-            } else {
-                viewModel.captured(piece, image: cropped ?? image, fieldDetections: detections, source: .gallery)
             }
         }
     }
@@ -329,19 +333,34 @@ struct IDCPassportScanScreen: View {
 private struct IDCPassportCameraView: View {
     @ObservedObject var cameraService: IDCCameraService
     let isForBackPage: Bool
-    let engine: IDCPassportScanEngine
     @Binding var guidance: IDCPassportGuidance
     let onCaptured: (UIImage, IDCFieldDetections?) -> Void
-    var onPassportSeen: () -> Void = {}
+    let onPassportSeen: () -> Void
 
-    @StateObject private var scanState = IDCPassportScanState()
+    @StateObject private var liveScan: IDCPassportLiveScan
+
+    init(
+        cameraService: IDCCameraService,
+        isForBackPage: Bool,
+        analyzer: IDCPassportAnalyzer,
+        guidance: Binding<IDCPassportGuidance>,
+        onCaptured: @escaping (UIImage, IDCFieldDetections?) -> Void,
+        onPassportSeen: @escaping () -> Void = {}
+    ) {
+        _cameraService = ObservedObject(wrappedValue: cameraService)
+        self.isForBackPage = isForBackPage
+        _guidance = guidance
+        self.onCaptured = onCaptured
+        self.onPassportSeen = onPassportSeen
+        _liveScan = StateObject(wrappedValue: IDCPassportLiveScan(analyzer: analyzer))
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             ZStack {
                 IDCCameraPreview(session: cameraService.session)
 
-                if scanState.guidance == .holdStill {
+                if liveScan.guidance == .holdStill {
                     IDCHoldStillPreviewTint()
                         .transition(.opacity)
                 }
@@ -357,7 +376,7 @@ private struct IDCPassportCameraView: View {
                     .aspectRatio(1.586, contentMode: .fit)
                     .padding(.horizontal, IDCTheme.Layout.passportBracketHorizontalPadding)
 
-                if scanState.isProcessing {
+                if liveScan.isProcessing {
                     Color.black.opacity(0.25)
                     ProgressView().tint(.white).scaleEffect(1.3)
                 }
@@ -370,42 +389,42 @@ private struct IDCPassportCameraView: View {
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: scanState.guidance)
+        .animation(.easeInOut(duration: 0.25), value: liveScan.guidance)
         .onAppear(perform: startCamera)
         .onDisappear {
             cameraService.stopSession()
-            engine.stopLive()
+            liveScan.stop()
         }
-        .onReceive(scanState.$guidance) { guidance = $0 }
-        .onReceive(scanState.$hasSeenPassport.filter { $0 }) { _ in onPassportSeen() }
-        .onReceive(scanState.$capturedImage.compactMap { $0 }) { image in
+        .onReceive(liveScan.$guidance) { guidance = $0 }
+        .onReceive(liveScan.$hasSeenPassport.filter { $0 }) { _ in onPassportSeen() }
+        .onReceive(liveScan.$capturedImage.compactMap { $0 }) { image in
             cameraService.stopSession()
-            onCaptured(image, scanState.capturedFieldDetections)
+            onCaptured(image, liveScan.capturedFieldDetections)
         }
     }
 
     private func startCamera() {
-        engine.startLive(isForBackPage: isForBackPage, state: scanState)
-        weak let liveEngine = engine
+        liveScan.start(isForBackPage: isForBackPage)
+        weak let scan = liveScan
         cameraService.configureForVideo(position: .back) { sampleBuffer in
-            liveEngine?.processFrame(sampleBuffer)
+            scan?.process(sampleBuffer)
         } onConfigured: {
             cameraService.startSession()
         }
     }
 
     private var pill: (text: String, tone: IDCStatusPill.Tone, systemIcon: String?)? {
-        guard let copy = scanState.guidance.copy(isForBackPage: isForBackPage) else { return nil }
+        guard let copy = liveScan.guidance.copy(isForBackPage: isForBackPage) else { return nil }
         return (copy.pill, copy.tone, copy.isError ? "exclamationmark.circle.fill" : nil)
     }
 
     private var bracketColor: Color {
-        if scanState.guidance.copy(isForBackPage: isForBackPage)?.isError == true {
+        if liveScan.guidance.copy(isForBackPage: isForBackPage)?.isError == true {
             return IDCTheme.Colors.statusAlertBackground.opacity(0.55)
         }
-        switch scanState.guidance {
+        switch liveScan.guidance {
         case .holdStill: return .green
-        default: return scanState.isGoodFrame ? .green : .white
+        default: return liveScan.isGoodFrame ? .green : .white
         }
     }
 }

@@ -1,6 +1,4 @@
-/// The live selfie coaching states. Raw values are the strings the app's analyzer publishes as the status
-/// message, so an engine can pass its message through unchanged.
-enum IDCSelfieGuidance: String {
+enum IDCSelfieGuidance: String, Sendable {
     case autoCapturing = "Auto Capturing"
     case tooBright = "Too Bright"
     case tooDark = "Too Dark"
@@ -25,4 +23,32 @@ enum IDCSelfieGuidance: String {
     case faceRight = "Head turned right — look straight"
     case faceNotCentered = "Face not centered"
     case goodPhoto = "Good photo, hold still"
+}
+
+extension IDCSelfieGuidance {
+    var rank: Float {
+        switch self {
+        case .autoCapturing: 16
+        case .tooBright: 15
+        case .tooDark: 14
+        case .faceMissing: 13
+        case .notASelfie: 12.5
+        case .multipleFaces: 12
+        case .holdStraight: 11.7
+        case .tilted: 11.6
+        case .smiling, .noTeeth: 11.5
+        case .faceOutOfBounds: 11
+        case .specs: 10
+        case .faceCovered: 9
+        case .headCovered: 8
+        case .bothEyesClosed: 7.1
+        case .oneEyeClosed: 7
+        case .faceTooClose: 6
+        case .faceTooFar: 5
+        case .faceUp, .faceDown: 4
+        case .faceLeft, .faceRight: 3
+        case .faceNotCentered: 2
+        case .goodPhoto: 1
+        }
+    }
 }

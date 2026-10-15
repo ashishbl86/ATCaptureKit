@@ -240,10 +240,12 @@ extension IDCCameraService: AVCapturePhotoCaptureDelegate {
 struct IDCCameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
     var onViewCreated: ((IDCCameraPreviewUIView) -> Void)? = nil
+    var onSizeChange: ((CGSize) -> Void)? = nil
 
     func makeUIView(context: Context) -> IDCCameraPreviewUIView {
         let view = IDCCameraPreviewUIView()
         view.previewLayer.session = session
+        view.onSizeChange = onSizeChange
         onViewCreated?(view)
         return view
     }
@@ -252,6 +254,7 @@ struct IDCCameraPreview: UIViewRepresentable {
         if uiView.previewLayer.session !== session {
             uiView.previewLayer.session = session
         }
+        uiView.onSizeChange = onSizeChange
     }
 }
 
@@ -263,9 +266,19 @@ final class IDCCameraPreviewUIView: UIView {
         layer as! AVCaptureVideoPreviewLayer
     }
 
+    var onSizeChange: ((CGSize) -> Void)?
+    private var reportedSize: CGSize = .zero
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         previewLayer.videoGravity = .resizeAspectFill
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard bounds.size != reportedSize else { return }
+        reportedSize = bounds.size
+        onSizeChange?(bounds.size)
     }
 
     required init?(coder: NSCoder) {
