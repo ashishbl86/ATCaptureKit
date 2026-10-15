@@ -1,8 +1,8 @@
 import Foundation
 
-enum IDCStrings {
+public enum IDCStrings {
 
-    enum CTA {
+    public enum CTA {
         static let `continue` = "Continue"
         static let retry = "Retry"
         static let scanAgain = "Scan Again"
@@ -12,7 +12,7 @@ enum IDCStrings {
         static let scan = "Scan"
         static let giveAccess = "Give Access"
         static let or = "OR"
-        static let skip = "Skip for now"
+        public static let skip = "Skip for now"
     }
 
     enum UploadSource {
@@ -115,7 +115,7 @@ enum IDCStrings {
         static let uploaded = "Uploaded"
     }
 
-    enum Failure {
+    public enum Failure {
         static let passportChecksFailed = "Passport checks failed"
         static let visaPhotoChecksFailed = "Visa photo checks failed"
 
@@ -134,7 +134,7 @@ enum IDCStrings {
         static let connectionErrorTitle = "Connection error"
         static let checkFailedTitle = "Couldn't check your photo"
         static let scannerNotReadyMessage = "Couldn't get the scanner ready — please try again."
-        static let unreadablePhotoMessage = "Couldn't read this photo — please try another."
+        public static let unreadablePhotoMessage = "Couldn't read this photo — please try another."
         static let selfieCheckTitle = "Couldn't verify this selfie"
         static let notASelfieTitle = "This doesn't look like a selfie"
         static let notASelfieMessage = "Upload a clear photo of your face, not a document"
@@ -222,10 +222,10 @@ enum IDCStrings {
         }
     }
 
-    enum Verifier {
-        static let unreadablePassport = "We couldn't read your passport — submit a clear photo of your passport"
-        static let offline = "We couldn't verify your passport due to a poor internet connection. Please check your network and try again."
-        static let uploadFailed = "We couldn't upload your photo. Please check your connection and try again."
+    public enum Verifier {
+        public static let unreadablePassport = "We couldn't read your passport — submit a clear photo of your passport"
+        public static let offline = "We couldn't verify your passport due to a poor internet connection. Please check your network and try again."
+        public static let uploadFailed = "We couldn't upload your photo. Please check your connection and try again."
     }
 
     enum A11y {

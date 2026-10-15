@@ -6,9 +6,9 @@ This folder is the Swift package `IdentityCapture`, copied from the Atlys iOS ap
 
 | What | Path |
 |---|---|
-| Package | `/Users/aravindh/Desktop/Atlys/IdentityCapture`, git on `master`, no commits yet, no remote |
+| Package | `/Users/aravindh/Desktop/Atlys/IdentityCapture`, git on `master` at `f2708b2`, remote `atlyslabs/ATCaptureKit` |
 | Package sources | `Sources/IdentityCapture`, copied from `vdcios/VDCApp/Modules/IdentityCapture` |
-| App repo | `/Users/aravindh/Desktop/Atlys/vdcios`, branch `feature-profile-ai-spm`, HEAD `c2228520b` |
+| App repo | `/Users/aravindh/Desktop/Atlys/vdcios`, branch `feature-profile-ai-spm` (base `50ce1e9e1`) |
 | Original module | `vdcios/VDCApp/Modules/IdentityCapture` |
 | Profile package | `/Users/aravindh/Desktop/Atlys/AI-Profile` |
 
@@ -39,6 +39,22 @@ The screens that remain in Sources still name app types. Each one is a small pro
 - Analytics. `IDCAnalytics` calls `AnalyticsEventManager.sharedInstance.logPostHogEvent`. A reporting protocol replaces that. The app forwards the events.
 - Navigation. `IDCNavigator.push` downcasts to `AVNavigationViewController` and builds one when it has to present. AIProfile's host already presents on a plain `UINavigationController` and does not call `IDCNavigator`. The package should push and present on `UINavigationController`. The app keeps the `AVNavigationViewController` behavior at its own call sites.
 - `Image("reminder_bell")` reads the app catalog.
+
+## Status as of 2026-10-15: linked into the app (uncommitted)
+
+The app on `feature-profile-ai-spm` now uses this package instead of `VDCApp/Modules/IdentityCapture`. All of this is uncommitted in both repos.
+
+- **App wiring.** `VDCApp.xcodeproj` has an `XCLocalSwiftPackageReference` to `../IdentityCapture` with product `ATCaptureKit` on the VDCApp target. It is local because the public-access changes below are not pushed. Switch it to the remote once they are. The app's module folder is now `VDCApp/Modules/IdentityCaptureHost` (synchronized group `1DCA97002F5800000000A001`). The 33 files that moved into this package are deleted there. `Application/` and the OCR `Data/` files stay as app code.
+- **App-side engine.** `Engines/VDCCaptureScanEngines.swift` implements `IDCScanEngineProvider`. It takes `ocrSettings` and the two selfie capture settings, which used to be `IDCConfiguration` fields. The passport engine creates a fresh `PassportFrameProcessor` per `startLive`, sharing one `PassportUploadAnalyzer` model with `validateUpload`, and forwards its `@Published` state into `IDCPassportScanState`. The selfie engine does the same with `SelfieFrameProcessor` and `SelfieUploadAnalyzer`. `restartLive` maps to the processor's `restart()`, and the viewfinder is stored until a processor exists. There are guidance and field-detection converters both ways, and the old `idcFailure` mappings.
+- **Other app pieces.** `Core/VDCCaptureAnalytics.install()` runs in AppDelegate and keeps the reporter alive, since the package holds it weakly. `Application/ApplicationCaptureNavigator` is the app's `AVNavigationViewController`-aware push and dismiss, so this package's `IDCNavigator` stays internal. The launcher, both KYC capture views, the Profile V3 identity-capture adapter and both debug-menu entry points pass `VDCCaptureScanEngines`. `AppIntegration/IdentityCaptureHost` here mirrors the app folder.
+- **Made public in this package**, because the app uses them:
+  - the `IDCConfiguration` knobs: top bar, trailing button, reminder link, `skip`, `analyticsSubjectId`, `onReminderSet` and `selfieSubjectName`;
+  - `IDCSkipOption`, `IDCScanTopBarPlacement`, the `IDCCallbacks` properties, `IDCCaptureResult.fieldDetections` and `IDCPiece.isPassport`;
+  - the `IDCCaptureFailure` presets and `selfieIssue`, `IDCVerificationOutcome.verified` and `IDCPassThroughVerifier`;
+  - `IDCStrings.Failure.unreadablePhotoMessage`, `IDCStrings.Verifier.*` and `IDCStrings.CTA.skip`;
+  - `IDCFlowViewModel.updateProgress` and `updateFlowTitle`.
+- **Debug harness.** `IdentityCaptureDebugHostingController` is public with `init(scanEngines:onClose:)`, so live debug flows use the app's engines instead of the no-op ones. It is still `#if DEBUG`, and so are both app call sites.
+- **Verified** on 2026-10-15. The package builds alone (`xcodebuild -scheme ATCaptureKit`, simulator), and a full VDCApp Debug simulator build with its own `-derivedDataPath` succeeds with no errors and no new warnings. The capture flows have not been run on a device.
 
 ## Status as of 2026-10-14
 

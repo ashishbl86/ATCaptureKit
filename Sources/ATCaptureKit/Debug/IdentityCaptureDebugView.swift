@@ -369,6 +369,8 @@ enum IdentityCaptureDebugCase: Identifiable {
 
 enum IdentityCaptureDebugLauncher {
 
+    @MainActor static var scanEngines: IDCScanEngineProvider = IDCNoopScanEngineProvider()
+
     @MainActor
     static func launch(_ item: IdentityCaptureDebugCase, from presenter: UIViewController) {
         switch item {
@@ -392,7 +394,7 @@ enum IdentityCaptureDebugLauncher {
             IDCFactory.makeViewController(
                 configuration: configuration,
                 verifier: verifier,
-                scanEngines: IDCNoopScanEngineProvider(),
+                scanEngines: scanEngines,
                 callbacks: IDCCallbacks(
                     onComplete: { results, _ in
                         print("[IdentityCaptureDebug] Identity capture complete — \(results.count) piece(s)")
@@ -441,10 +443,10 @@ final class IdentityCaptureDebugController: ObservableObject {
     }
 }
 
-struct IdentityCaptureDebugView: View {
+public struct IdentityCaptureDebugView: View {
     @ObservedObject var controller: IdentityCaptureDebugController
 
-    var body: some View {
+    public var body: some View {
         NavigationView {
             List {
                 Section {
@@ -497,9 +499,10 @@ struct IdentityCaptureDebugView: View {
 
 // MARK: - Host
 
-final class IdentityCaptureDebugHostingController: UIHostingController<IdentityCaptureDebugView> {
+public final class IdentityCaptureDebugHostingController: UIHostingController<IdentityCaptureDebugView> {
 
-    init(onClose: @escaping () -> Void) {
+    public init(scanEngines: IDCScanEngineProvider? = nil, onClose: @escaping () -> Void) {
+        IdentityCaptureDebugLauncher.scanEngines = scanEngines ?? IDCNoopScanEngineProvider()
         let controller = IdentityCaptureDebugController(onClose: onClose)
         super.init(rootView: IdentityCaptureDebugView(controller: controller))
         controller.host = self

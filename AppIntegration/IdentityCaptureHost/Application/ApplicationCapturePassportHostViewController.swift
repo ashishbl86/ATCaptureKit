@@ -1,3 +1,4 @@
+import ATCaptureKit
 import UIKit
 
 final class ApplicationCapturePassportHostViewController: UIViewController {

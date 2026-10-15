@@ -1,3 +1,4 @@
+import ATCaptureKit
 import Alamofire
 import UIKit
 import SwiftyJSON

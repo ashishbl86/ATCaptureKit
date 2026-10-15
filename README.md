@@ -1,9 +1,9 @@
 # ATCaptureKit
 
-The passport and selfie capture flow (front page, back page, selfie, gallery and file upload, review and failure sheets), extracted from the VDC app's `VDCApp/Modules/IdentityCapture` into a standalone SPM package. Not tagged yet, and there is no remote; link the checkout as a local package until `atlyslabs/ATCaptureKit` exists.
+The passport and selfie capture flow (front page, back page, selfie, gallery and file upload, review and failure sheets), extracted from the VDC app's `VDCApp/Modules/IdentityCapture` into a standalone SPM package. The remote is `atlyslabs/ATCaptureKit` (branch `master`, not tagged yet).
 
 ```swift
-.package(url: "https://github.com/atlyslabs/ATCaptureKit.git", branch: "main")
+.package(url: "https://github.com/atlyslabs/ATCaptureKit.git", branch: "master")
 ```
 
 Architecture rule this package follows: **only the capture screens live here.** On-device document and face checks, OCR, upload, and the visa-funnel storage that used to sit next to this flow are the host app's job.
@@ -14,7 +14,7 @@ Architecture rule this package follows: **only the capture screens live here.** 
 - `Sources/ATCaptureKit/Presentation` — the flow. `IDCFactory` and `IDCFlowView` are the entry points. The passport scan, the flip between front and back, the selfie scan, the review sheet, and the failure sheet live under `Presentation/Views`.
 - `Sources/ATCaptureKit/Core` — camera session and permission gate, haptics, image and PDF pickers, and `IDCAnalytics`. `IDCNoopScanEngineProvider` is internal and only covers previews and the debug harness; a live scan through it never fires.
 - `Sources/ATCaptureKit/Debug` — `IdentityCaptureDebugView`, a harness for driving the flow without a host. It is compiled into the library.
-- `AppIntegration/IdentityCaptureHost` — the Atlas visa-funnel adapter (`ApplicationCaptureLauncher`, the OCR client). It is not a target of this package. It still calls the older `IDCFactory` signature and will not build against this package until it passes `scanEngines:`.
+- `AppIntegration/IdentityCaptureHost` — the Atlas visa-funnel adapter (`ApplicationCaptureLauncher`, the OCR client). It is not a target of this package. It mirrors the app's `VDCApp/Modules/IdentityCaptureHost`, which builds against this package: the launcher passes `scanEngines:`, `Engines/VDCCaptureScanEngines.swift` adapts the app's Vision analyzers, and `Core/VDCCaptureAnalytics.swift` is the analytics reporter.
 
 Passport detection art, corner brackets, and the camera preview moved in with the flow. They used to live in the KYC module.
 

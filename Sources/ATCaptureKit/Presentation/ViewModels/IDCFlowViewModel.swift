@@ -79,11 +79,11 @@ public final class IDCFlowViewModel: ObservableObject {
         IDCAnalytics.flowStarted(context: configuration.analyticsContext, pieces: configuration.pieces)
     }
 
-    func updateProgress(_ progress: IDCProgressStyle) {
+    public func updateProgress(_ progress: IDCProgressStyle) {
         configuration.progress = progress
     }
 
-    func updateFlowTitle(_ title: String?) {
+    public func updateFlowTitle(_ title: String?) {
         guard configuration.flowTitle != title else { return }
         configuration.flowTitle = title
     }

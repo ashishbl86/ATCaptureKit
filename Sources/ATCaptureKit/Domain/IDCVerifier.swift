@@ -4,8 +4,10 @@ public protocol IDCVerifier {
     func verify(_ result: IDCCaptureResult) async -> IDCVerificationOutcome
 }
 
-struct IDCPassThroughVerifier: IDCVerifier {
-    func verify(_ result: IDCCaptureResult) async -> IDCVerificationOutcome {
+public struct IDCPassThroughVerifier: IDCVerifier {
+    public init() {}
+
+    public func verify(_ result: IDCCaptureResult) async -> IDCVerificationOutcome {
         .verified(payload: nil)
     }
 }

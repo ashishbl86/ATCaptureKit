@@ -1,3 +1,4 @@
+import ATCaptureKit
 import Foundation
 
 enum ApplicationCapturePassportPlanning {

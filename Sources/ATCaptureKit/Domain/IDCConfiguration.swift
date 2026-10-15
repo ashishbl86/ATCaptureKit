@@ -18,12 +18,12 @@ public enum IDCProgressStyle {
     case hidden
 }
 
-struct IDCSkipOption {
-    var title: String
-    var appearsAfter: TimeInterval
-    var appearsAfterRejections: Int
+public struct IDCSkipOption {
+    public var title: String
+    public var appearsAfter: TimeInterval
+    public var appearsAfterRejections: Int
 
-    init(
+    public init(
         title: String = IDCStrings.CTA.skip,
         appearsAfter: TimeInterval = 10,
         appearsAfterRejections: Int = 2
@@ -34,7 +34,7 @@ struct IDCSkipOption {
     }
 }
 
-enum IDCScanTopBarPlacement {
+public enum IDCScanTopBarPlacement {
     case standard
     case embeddedSheet
 }
@@ -47,17 +47,17 @@ public struct IDCConfiguration {
     public var progress: IDCProgressStyle = .segments(count: 4, filled: 1)
     public var showsBack: Bool = true
     public var allowUploadFromDevice: Bool = true
-    var showsScanTopBar: Bool = true
-    var scanTopBarPlacement: IDCScanTopBarPlacement = .standard
-    var scanTopBarTrailingSystemImage: String?
-    var onScanTopBarTrailingTap: (() -> Void)?
+    public var showsScanTopBar: Bool = true
+    public var scanTopBarPlacement: IDCScanTopBarPlacement = .standard
+    public var scanTopBarTrailingSystemImage: String?
+    public var onScanTopBarTrailingTap: (() -> Void)?
     public var headerAccessory: AnyView?
-    var showsReminderLink: Bool = true
-    var skip: IDCSkipOption?
-    var analyticsSubjectId: String?
+    public var showsReminderLink: Bool = true
+    public var skip: IDCSkipOption?
+    public var analyticsSubjectId: String?
     var reminderLinkRevealNanoseconds: UInt64 = IDCTheme.Animation.reminderLinkRevealNanoseconds
-    var onReminderSet: ((Date) -> Void)?
-    var selfieSubjectName: String?
+    public var onReminderSet: ((Date) -> Void)?
+    public var selfieSubjectName: String?
     let analyticsContext: String
     #if DEBUG
     var debugSimulateCameraDenied: Bool = false

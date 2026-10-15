@@ -1,3 +1,4 @@
+import ATCaptureKit
 import UIKit
 
 enum ApplicationCaptureLauncher {
@@ -99,7 +100,6 @@ enum ApplicationCaptureLauncher {
             analyticsContext: "visa_\(context.scanLocation.rawValue)"
         )
         configuration.copy = copy
-        configuration.ocrSettings = context.passportOcrSettings
         configuration.progress = .segments(count: max(pieces.count, 1), filled: 1)
         configuration.allowUploadFromDevice = true
         applyFunnelChrome(to: &configuration, context: context, presentation: presentation)
@@ -120,6 +120,7 @@ enum ApplicationCaptureLauncher {
             configuration: configuration,
             context: context,
             verifier: verifier,
+            scanEngines: VDCCaptureScanEngines(ocrSettings: context.passportOcrSettings),
             callbacks: IDCCallbacks(
                 onPieceVerified: { piece, _ in
                     if piece == .passportFront, pieces.contains(.passportBack) {
@@ -304,8 +305,6 @@ enum ApplicationCaptureLauncher {
         )
         configuration.progress = .hidden
         configuration.allowUploadFromDevice = true
-        configuration.selfieLiveCaptureSettings = context.selfieLiveCaptureSettings
-        configuration.selfieUploadCaptureSettings = context.selfieUploadCaptureSettings
         applyFunnelChrome(to: &configuration, context: context, presentation: presentation)
 
         AnalyticsEventManager.sharedInstance.logPostHogApplicationEvent(
@@ -334,6 +333,10 @@ enum ApplicationCaptureLauncher {
             configuration: configuration,
             context: context,
             verifier: IDCSelfieApplicationVerifier(context: context),
+            scanEngines: VDCCaptureScanEngines(
+                selfieLiveCaptureSettings: context.selfieLiveCaptureSettings,
+                selfieUploadCaptureSettings: context.selfieUploadCaptureSettings
+            ),
             callbacks: IDCCallbacks(
                 onComplete: { results, _ in
                     guard let result = results[.selfie] else {
@@ -364,6 +367,7 @@ enum ApplicationCaptureLauncher {
         configuration: IDCConfiguration,
         context captureContext: ApplicationCaptureContext,
         verifier: IDCVerifier,
+        scanEngines: IDCScanEngineProvider,
         callbacks: IDCCallbacks
     ) {
         let pushContext = ApplicationCapturePushContext()
@@ -371,6 +375,7 @@ enum ApplicationCaptureLauncher {
         let flowViewController = IDCFactory.makeViewController(
             configuration: configuration,
             verifier: verifier,
+            scanEngines: scanEngines,
             callbacks: wiredIDCCallbacks(
                 from: callbacks,
                 presentation: presentation,
@@ -381,7 +386,7 @@ enum ApplicationCaptureLauncher {
 
         switch presentation {
         case .push(let presenter):
-            IDCNavigator.push(
+            ApplicationCaptureNavigator.push(
                 flowViewController,
                 from: presenter,
                 navBarBehavior: funnelNavBarBehavior(for: captureContext.scanLocation)
@@ -426,7 +431,7 @@ enum ApplicationCaptureLauncher {
     ) {
         switch presentation {
         case .push:
-            IDCNavigator.dismiss(pushContext.viewController, then: completion)
+            ApplicationCaptureNavigator.dismiss(pushContext.viewController, then: completion)
         case .modal(let host):
             if let navigationController = pushContext.presentedNavigationController {
                 navigationController.dismiss(animated: true, completion: completion)
@@ -486,14 +491,15 @@ enum ApplicationCaptureLauncher {
             configuration.onScanTopBarTrailingTap = onImportFile
         }
 
-        configuration.selfieLiveCaptureSettings = selfieLiveCaptureSettings
-        configuration.selfieUploadCaptureSettings = selfieUploadCaptureSettings
-
         pushFlow(
             presentation: presentation ?? .push(on: presenter),
             configuration: configuration,
             context: context,
             verifier: IDCPassThroughVerifier(),
+            scanEngines: VDCCaptureScanEngines(
+                selfieLiveCaptureSettings: selfieLiveCaptureSettings,
+                selfieUploadCaptureSettings: selfieUploadCaptureSettings
+            ),
             callbacks: IDCCallbacks(
                 onComplete: { results, _ in
                     onFinished(results[piece]?.image)
@@ -559,6 +565,7 @@ enum ApplicationCaptureLauncher {
                 scanLocation: .usPostCheckout
             ),
             verifier: IDCPassThroughVerifier(),
+            scanEngines: VDCCaptureScanEngines(),
             callbacks: IDCCallbacks(
                 onComplete: { results, _ in
                     onFinished(results[.passportFront]?.image, results[.passportBack]?.image)

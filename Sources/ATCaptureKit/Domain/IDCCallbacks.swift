@@ -1,12 +1,12 @@
 import Foundation
 
 public struct IDCCallbacks {
-    var onPieceCaptured: ((IDCCaptureResult) -> Void)?
-    var onPieceVerified: ((IDCPiece, Any?) -> Void)?
-    var onComplete: (_ results: [IDCPiece: IDCCaptureResult], _ payloads: [IDCPiece: Any]) -> Void
-    var onExit: () -> Void
-    var onSkip: (() -> Void)?
-    var onSubjectDetected: ((IDCPiece) -> Void)?
+    public var onPieceCaptured: ((IDCCaptureResult) -> Void)?
+    public var onPieceVerified: ((IDCPiece, Any?) -> Void)?
+    public var onComplete: (_ results: [IDCPiece: IDCCaptureResult], _ payloads: [IDCPiece: Any]) -> Void
+    public var onExit: () -> Void
+    public var onSkip: (() -> Void)?
+    public var onSubjectDetected: ((IDCPiece) -> Void)?
 
     public init(
         onPieceCaptured: ((IDCCaptureResult) -> Void)? = nil,

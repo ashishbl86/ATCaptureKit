@@ -1,3 +1,4 @@
+import ATCaptureKit
 import UIKit
 
 struct IDCSelfieApplicationVerifier: IDCVerifier {

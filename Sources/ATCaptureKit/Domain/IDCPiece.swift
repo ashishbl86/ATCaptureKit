@@ -5,7 +5,7 @@ public enum IDCPiece: String, CaseIterable, Hashable {
     case passportBack
     case selfie
 
-    var isPassport: Bool { self != .selfie }
+    public var isPassport: Bool { self != .selfie }
 
     var defaultEyebrow: String? {
         switch self {
@@ -34,7 +34,7 @@ public struct IDCCaptureResult: Identifiable {
     public let piece: IDCPiece
     public let image: UIImage
     public let source: IDCCaptureSource
-    let fieldDetections: IDCFieldDetections?
+    public let fieldDetections: IDCFieldDetections?
 
     public var id: String { "\(piece.rawValue)-\(captureToken.uuidString)" }
 
@@ -58,5 +58,5 @@ public enum IDCVerificationOutcome {
     case rejected(reason: String)
     case failed(message: String)
 
-    static var verified: IDCVerificationOutcome { .verified(payload: nil) }
+    public static var verified: IDCVerificationOutcome { .verified(payload: nil) }
 }
